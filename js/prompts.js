@@ -115,7 +115,7 @@ Return JSON exactly in this shape:
  "command": {"action":"none|pause|roleplay|practice|repeat|hint","role":""},
  "next": {"bn":"<next Bangla sentence>","en":"<English>","hint":[{"bn":"..","en":".."}]}
 }
-Rules: "correct" is true when the intended sentence is grammatical, natural and means the Bangla sentence (pronunciation-only issues still count as correct). mistakes: max 2, only real errors, empty if correct.
+Rules: the two alternatives must be worded differently from "corrected" and from each other. "correct" is true when the intended sentence is grammatical, natural and means the Bangla sentence (pronunciation-only issues still count as correct). mistakes: max 2, only real errors, empty if correct.
 type "question": the learner ONLY asked something (no real attempt) — answer in question_answer_bn and set feedback_bn to the answer followed by "এবার পুরো বাক্যটা বলো।"; "next" may be empty.
 type "command": fill "command" only; other fields may be empty.
 type "answer": always fill corrected, alternatives, feedback_bn and next. If the learner asked a word inside an attempt, include the answer at the start of feedback_bn, set asked_for_help true.`,

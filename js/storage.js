@@ -60,7 +60,7 @@ const DEFAULT_SETTINGS = {
   provider: 'gemini',     // gemini | claude
   geminiKey: '',
   claudeKey: '',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.5-flash-lite',
   claudeModel: 'claude-opus-5-5',
   enVoice: '',
   bnVoice: '',

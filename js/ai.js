@@ -20,9 +20,9 @@ const AI = {
     return this.parse(text);
   },
 
-  async fetchJSON(url, opts) {
+  async fetchJSON(url, opts, timeoutMs) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), this.TIMEOUT_MS);
+    const t = setTimeout(() => ctrl.abort(), timeoutMs || this.TIMEOUT_MS);
     let res;
     try {
       res = await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
@@ -44,29 +44,30 @@ const AI = {
   },
 
   /* ---------- Google Gemini ----------
-     Google-এর সার্ভার ব্যস্ত থাকলে ("high demand") বা একটা মডেলের ফ্রি কোটা শেষ হলে:
-     একবার একটু অপেক্ষা করে আবার চেষ্টা, তারপর অন্য Gemini মডেলে চেষ্টা। */
+     Google-এর সার্ভার ব্যস্ত থাকলে ("high demand"), মডেল বন্ধ হয়ে গেলে, বা ফ্রি কোটা শেষ হলে
+     অ্যাপ নিজেই অন্য মডেলে চেষ্টা করে। যেটা কাজ করে, এই সেশনে সেটাই আগে ব্যবহার করে। */
+  _good: null,
   async gemini(key, userMsg) {
-    const primary = Settings.get('geminiModel') || 'gemini-2.5-flash';
-    const candidates = [primary];
-    let lastErr = null, altsAdded = false;
-    for (let i = 0; i < candidates.length && i < 5; i++) {
+    const primary = Settings.get('geminiModel') || 'gemini-3.5-flash-lite';
+    const candidates = [];
+    if (this._good) candidates.push(this._good);
+    if (!candidates.includes(primary)) candidates.push(primary);
+    let lastErr = null, altsAdded = false, primaryGone = false;
+    for (let i = 0; i < candidates.length && i < 12; i++) {
       const model = candidates[i];
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const text = await this.geminiOnce(key, model, userMsg);
-          // প্রধান মডেল আর নেই (404) কিন্তু অন্যটা চলল — সেটাই সেভ করি
-          if (model !== primary && lastErr && lastErr.code === 'nomodel') Settings.set('geminiModel', model);
-          return text;
-        } catch (e) {
-          if (!lastErr || i === 0) lastErr = e;
-          if (e.code === 'server' || e.code === 'ratelimit' || e.code === 'timeout') {
-            if (attempt === 0 && e.code === 'server') { await new Promise(r => setTimeout(r, 1500)); continue; }
-            break; // অন্য মডেলে যাই
-          }
-          if (e.code === 'nomodel' || e.code === 'empty') break;
-          throw e; // key ভুল, ইন্টারনেট নেই ইত্যাদি — মডেল বদলে লাভ নেই
-        }
+      try {
+        const wait = /^gemma/.test(model) ? 60000 : (i === 0 ? 25000 : 15000);
+        const text = await this.geminiOnce(key, model, userMsg, wait);
+        this._good = model;
+        // সেটিংসের মডেলটা আর নেই (404) — যেটা চলল সেটাই সেভ করি
+        if (primaryGone && model !== primary) Settings.set('geminiModel', model);
+        return text;
+      } catch (e) {
+        if (model === primary && e.code === 'nomodel') primaryGone = true;
+        if (model === this._good) this._good = null;
+        // key ভুল বা ইন্টারনেট নেই — মডেল বদলে লাভ নেই
+        if (!['server', 'ratelimit', 'timeout', 'nomodel', 'empty', 'api'].includes(e.code)) throw e;
+        if (!lastErr || e.code !== 'nomodel') lastErr = e;
       }
       if (!altsAdded) {
         altsAdded = true;
@@ -76,25 +77,27 @@ const AI = {
     throw lastErr || new AIError('server');
   },
 
-  async geminiOnce(key, model, userMsg) {
+  async geminiOnce(key, model, userMsg, timeoutMs) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const body = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: userMsg }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 8192 }
     };
     const data = await this.fetchJSON(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(body)
-    });
+    }, timeoutMs);
     const cand = data && data.candidates && data.candidates[0];
-    const text = cand && cand.content && (cand.content.parts || []).map(p => p.text || '').join('');
+    // কিছু মডেল "ভাবনার" লেখাও পাঠায় (thought) — শুধু আসল উত্তরটা নিই
+    const text = cand && cand.content && (cand.content.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
     if (!text) throw new AIError('empty', (cand && cand.finishReason) || 'no text');
     return text;
   },
 
-  /* এই key দিয়ে কোন কোন "flash" মডেল চলে — নতুনগুলো আগে, "lite" গুলো শেষে */
+  /* এই key দিয়ে কোন কোন মডেল চলে: আগে দ্রুত "flash-lite", তারপর "flash" (নতুনগুলো আগে),
+     সবশেষে ধীর কিন্তু আলাদা সার্ভারের "gemma" — সব ব্যস্ত থাকলে শেষ ভরসা */
   _alts: null,
   async geminiAlternates(key) {
     if (this._alts) return this._alts;
@@ -102,14 +105,16 @@ const AI = {
       const data = await this.fetchJSON('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
         headers: { 'x-goog-api-key': key }
       });
-      const names = (data.models || [])
+      const all = (data.models || [])
         .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => m.name.replace(/^models\//, ''))
-        .filter(n => /^gemini-[\d.]+-flash/.test(n) && !/image|tts|audio|live|exp|thinking/.test(n));
+        .map(m => m.name.replace(/^models\//, ''));
       const ver = n => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
-      const rank = n => (/lite/.test(n) ? 1 : 0) + (/preview/.test(n) ? 0.5 : 0);
-      names.sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a));
-      this._alts = names.slice(0, 6);
+      const pre = n => (/preview/.test(n) ? 1 : 0);
+      const lite = n => (/lite/.test(n) ? 0 : 1);
+      const flash = all.filter(n => /^gemini-[\d.]+-flash/.test(n) && !/image|tts|audio|live|exp|thinking/.test(n));
+      flash.sort((a, b) => pre(a) - pre(b) || lite(a) - lite(b) || ver(b) - ver(a));
+      const gemma = all.filter(n => /^gemma-\d/.test(n) && /-it$/.test(n)).sort((a, b) => a.length - b.length).slice(0, 2);
+      this._alts = flash.slice(0, 9).concat(gemma);
     } catch (e) { this._alts = ['gemini-2.5-flash-lite']; }
     return this._alts;
   },

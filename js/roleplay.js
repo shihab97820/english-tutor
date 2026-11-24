@@ -34,7 +34,10 @@ const Roleplay = {
     while (true) {
       Tutor.guard(e);
       const said = await Tutor.hearLoop(handlers);
-      const res = await Tutor.think('roleplay_turn', { roleEn: role.en, level, history, said, turn });
+      // চরিত্রের পরের কথাটা (reply_en) আসতে আসতেই বলা শুরু
+      const speaker = Tutor.streamSpeaker('reply_en');
+      const res = await Tutor.think('roleplay_turn', { roleEn: role.en, level, history, said, turn },
+        (t, info) => speaker.feed(t, info));
       Tutor.guard(e);
 
       if (res.type === 'command' && res.command) {
@@ -54,13 +57,15 @@ const Roleplay = {
         this.lastEn = res.reply_en;
         this.lastBn = res.reply_bn || '';
         history.push({ who: 'tutor', text: res.reply_en });
-        await Tutor.say(res.reply_en, 'idle');
+        await speaker.finish(res.reply_en, 'idle');
       }
       if (res.end || turn > 10) break;
     }
 
     // ---- সারাংশ ----
-    const sum = await Tutor.think('roleplay_summary', { roleEn: role.en, history, mistakes });
+    const sumSpeaker = Tutor.streamSpeaker('summary_bn');
+    const sum = await Tutor.think('roleplay_summary', { roleEn: role.en, history, mistakes },
+      (t, info) => sumSpeaker.feed(t, info));
     Tutor.guard(e);
     const items = (sum.items || []).filter(i => i && i.correct);
     Tutor.clearExtra();
@@ -68,7 +73,7 @@ const Roleplay = {
       if (it.bn) Mistakes.add({ bn: it.bn, en: it.correct, said: it.said, why: it.why_bn });
       Tutor.addSay(it.said ? '❌ ' + it.said : '✏️ সঠিক', it.correct, 'correct');
     }
-    await Tutor.say(sum.summary_bn || 'দারুণ কথোপকথন হলো!', items.length ? 'encourage' : 'happy');
+    await sumSpeaker.finish(sum.summary_bn || 'দারুণ কথোপকথন হলো!', items.length ? 'encourage' : 'happy');
     if (items.length) App.toast('ভুলগুলো "আমার ভুল" তালিকায় রাখা হলো');
     await Tutor.say('এবার আবার অনুবাদ অনুশীলনে ফিরি।', 'idle');
     Tutor.setMode('practice');

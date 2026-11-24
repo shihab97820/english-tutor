@@ -10,6 +10,15 @@ const Practice = {
 
   topicEn() { return (TOPICS[Settings.get('topic')] || TOPICS.mixed).en; },
 
+  /* অ্যাপ খোলার সাথে সাথে (সালামের সময়েই) প্রথম বাক্যটা আনিয়ে রাখি */
+  prefetched: null,
+  prefetch() {
+    if (this.nextItem || this.prefetched || !Settings.apiKey()) return;
+    this.prefetched = AI.call('first', { level: Progress.level(), topic: this.topicEn(), recent: Progress.data().recent.slice(0, 15) })
+      .then(r => (r && r.next && r.next.bn) ? r.next : null)
+      .catch(() => null);
+  },
+
   async run(opts) {
     opts = opts || {};
     const e = Tutor.epoch;
@@ -28,6 +37,12 @@ const Practice = {
     while (true) {
       Tutor.guard(e);
       let item = this.current || this.queue.shift() || this.nextItem;
+      if (!item && this.prefetched) {
+        const p = this.prefetched;
+        this.prefetched = null;
+        item = await p;
+        Tutor.guard(e);
+      }
       if (!item) {
         const r = await Tutor.think('first', { level: Progress.level(), topic: this.topicEn(), recent: Progress.data().recent.slice(0, 15) });
         item = r && r.next;
@@ -58,13 +73,16 @@ const Practice = {
 
     while (true) {
       const said = await Tutor.hearLoop(handlers);
+      // উত্তর আসতে আসতেই feedback_bn-এর প্রথম বাক্য বলা শুরু হবে
+      const speaker = Tutor.streamSpeaker('feedback_bn');
       const res = await Tutor.think('evaluate', {
         bn: item.bn, en: item.en, said, level: Progress.level(), topic: this.topicEn(),
         recent: Progress.data().recent.slice(0, 15), review: !!item.reviewId
-      });
+      }, (t, info) => speaker.feed(t, info));
       Tutor.guard(e);
 
-      if (res.type === 'command' && res.command) {
+      if (res.type === 'command' && res.command && res.command.action && res.command.action !== 'none') {
+        await speaker.finish('');
         const a = res.command.action;
         if (a === 'pause') { Tutor.pause(); throw new Cancel(); }
         if (a === 'roleplay') { this.current = item; Tutor.startRoleplay(res.command.role); throw new Cancel(); }
@@ -76,11 +94,11 @@ const Practice = {
       (res.new_words || []).forEach(w => Words.add(w.bn, w.en));
 
       if (res.type === 'question') {
-        await Tutor.say(res.feedback_bn || ((res.question_answer_bn || '') + ' এবার পুরো বাক্যটা বলো।'), 'idle');
+        await speaker.finish(res.feedback_bn || ((res.question_answer_bn || '') + ' এবার পুরো বাক্যটা বলো।'), 'idle');
         continue;
       }
 
-      await this.feedback(item, res, said);
+      await this.feedback(item, res, said, speaker);
       return res;
     }
   },
@@ -95,7 +113,7 @@ const Practice = {
     }
   },
 
-  async feedback(item, res, said) {
+  async feedback(item, res, said, speaker) {
     const correct = !!res.correct;
     const helped = !!res.asked_for_help;
     const corrected = res.corrected || item.en;
@@ -125,7 +143,8 @@ const Practice = {
 
     // ---- বলো ----
     const fb = res.feedback_bn || (correct ? 'দারুণ! ' + corrected : 'প্রায় হয়েছে! সঠিকভাবে: ' + corrected);
-    await Tutor.say(fb, correct ? 'happy' : 'encourage');
+    if (speaker) await speaker.finish(fb, correct ? 'happy' : 'encourage');
+    else await Tutor.say(fb, correct ? 'happy' : 'encourage');
 
     for (const p of pron) {
       await Tutor.say(`উচ্চারণ: ${p.word} শব্দটা ধীরে শোনো।`, 'idle');

@@ -135,16 +135,20 @@ const Recorder = {
     } catch (e) { this.cleanup(); }
   },
   stop() {
+    // এই রেকর্ডিংয়ের জিনিসগুলো আলাদা করে নিই, যাতে পরের রেকর্ডিং শুরু হলে গোলমাল না হয়
+    const rec = this.rec, stream = this.stream, chunks = this.chunks;
+    this.rec = null; this.stream = null; this.chunks = [];
+    const stopTracks = () => { if (stream) stream.getTracks().forEach(t => t.stop()); };
     return new Promise(resolve => {
-      if (!this.rec || this.rec.state === 'inactive') { this.cleanup(); return resolve(null); }
-      this.rec.onstop = () => {
-        const blob = new Blob(this.chunks, { type: this.rec.mimeType || 'audio/webm' });
+      if (!rec || rec.state === 'inactive') { stopTracks(); return resolve(null); }
+      rec.onstop = () => {
+        const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
         if (this.lastUrl) URL.revokeObjectURL(this.lastUrl);
         this.lastUrl = blob.size > 1000 ? URL.createObjectURL(blob) : null;
-        this.cleanup();
+        stopTracks();
         resolve(this.lastUrl);
       };
-      try { this.rec.stop(); } catch (e) { this.cleanup(); resolve(null); }
+      try { rec.stop(); } catch (e) { stopTracks(); resolve(null); }
     });
   },
   cleanup() {
@@ -278,6 +282,7 @@ const Listener = {
   finish() {
     if (!this.active) return;
     this.active = false;
+    Perf.mark('turnEnd');
     clearTimeout(this.silenceTimer);
     const r = this.rec;
     const resolve = this._resolve;
@@ -294,7 +299,7 @@ const Listener = {
     };
     this._finishing = done;
     try { r && r.stop(); } catch (e) {}
-    setTimeout(done, 900); // শেষ টুকরো আসার জন্য একটু অপেক্ষা
+    setTimeout(done, 500); // শেষ টুকরো আসার জন্য সামান্য অপেক্ষা (সাধারণত তার আগেই চলে আসে)
   },
 
   /* বোতাম চাপলে (আবার বলো / বুঝিনি …) শোনা থামিয়ে action ফেরত দেয় */

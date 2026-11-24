@@ -126,6 +126,7 @@ const Tutor = {
     this.setMic('listening');
     await Recorder.start();
     this.guard(e);
+    Perf.reset();
     let r;
     try {
       r = await Listener.listen((done, interim) => { if (e === this.epoch) this.showMe(done, interim); });
@@ -142,7 +143,8 @@ const Tutor = {
     }
     this.guard(e);
     if (r.action) { Recorder.cleanup(); return r; }
-    await Recorder.stop();
+    Perf.mark('heard');
+    Recorder.stop(); // অপেক্ষা না করে — রেকর্ডিং পেছনে শেষ হোক
     this.guard(e);
     // রেকর্ডিং চালু থাকলে যদি দুবার কিছুই শোনা না যায়, রেকর্ডিং বন্ধ করে দিই (কিছু ফোনে মাইক দুজনকে একসাথে দেয় না)
     if (!r.text && Settings.get('recordVoice')) {
@@ -174,15 +176,17 @@ const Tutor = {
   },
 
   /* ---------- AI-কে জিজ্ঞেস ---------- */
-  async think(task, payload) {
+  async think(task, payload, onText) {
     const e = this.epoch;
     Avatar.setState('thinking');
     this.setMic('thinking');
     let tries = 0;
     while (true) {
       try {
-        const res = await AI.call(task, payload);
+        if (tries && onText) onText('', { restart: true });
+        const res = await AI.call(task, payload, onText && ((t, info) => { if (e === this.epoch) onText(t, info); }));
         this.guard(e);
+        this.showTiming();
         return res;
       } catch (err) {
         this.guard(e);
@@ -203,6 +207,72 @@ const Tutor = {
         this.guard(e); tries = 0;
       }
     }
+  },
+
+  /* ---------- streaming: উত্তর আসতে আসতেই বলা ----------
+     AI-র অর্ধেক-আসা JSON থেকে একটা ঘর (যেমন feedback_bn) পড়ে; একটা পুরো বাক্য
+     (। ! ? : বা ". ") হওয়ামাত্র সেটা বলা শুরু করে, বাকিটা আসতে থাকে। */
+  streamSpeaker(field) {
+    const self = this;
+    const e = this.epoch;
+    let spoken = 0, value = '', mood = 'idle', restarted = false, queue = Promise.resolve();
+    const speak = (seg) => {
+      queue = queue.then(async () => {
+        if (e !== self.epoch || self.pending === 'skip' || !seg.trim()) return;
+        if (!Perf.t.firstSpeech) { Perf.mark('firstSpeech'); self.showTiming(); }
+        Avatar.setState(mood);
+        Avatar.talking(true);
+        self.setMic('speaking');
+        let r = await Voice.speakMixed(seg, () => e !== self.epoch);
+        if (r === 'blocked' && e === self.epoch) { await App.tapToStart(); r = await Voice.speakMixed(seg, () => e !== self.epoch); }
+        Avatar.talking(false);
+      });
+    };
+    const boundary = (v, from) => {
+      const rx = /[।!?]|[.:](?=\s)/g;
+      rx.lastIndex = from;
+      let m, cut = -1;
+      while ((m = rx.exec(v))) cut = m.index + 1;
+      return cut;
+    };
+    return {
+      feed(text, info) {
+        if (info && info.restart) { if (spoken > 0) restarted = true; spoken = 0; value = ''; return; }
+        const c = /"correct"\s*:\s*(true|false)/.exec(text);
+        if (c) mood = c[1] === 'true' ? 'happy' : 'encourage';
+        const v = partialField(text, field);
+        if (v == null) return;
+        value = v;
+        self.showTutor(v);
+        if (restarted) return; // অন্য মডেল নতুন করে লিখছে — শেষে পুরোটা বলব
+        const cut = boundary(v, spoken);
+        if (cut > spoken) { speak(v.slice(spoken, cut)); spoken = cut; }
+      },
+      async finish(full, finalMood) {
+        if (finalMood) mood = finalMood;
+        if (full != null && full !== '') { value = full; self.showTutor(full); }
+        if (restarted) { speak(value); restarted = false; }
+        else if (value.length > spoken) speak(value.slice(spoken));
+        spoken = value.length;
+        await queue;
+        self.guard(e);
+      },
+      spokenSomething() { return spoken > 0; }
+    };
+  },
+
+  /* সেটিংসে "সময় দেখাও" চালু থাকলে: কোন ধাপে কত সেকেন্ড লাগল */
+  showTiming() {
+    if (!Settings.get('showTiming')) return;
+    let el = document.getElementById('timing');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'timing'; el.className = 'timing';
+      this.ui.myLine.after(el);
+    }
+    const s = (a, b) => Perf.since(a, b);
+    el.textContent = `⏱ চুপ→শোনা শেষ ${s('turnEnd', 'heard')}s · AI প্রথম শব্দ ${s('aiStart', 'aiFirst')}s · AI পুরো ${s('aiStart', 'aiDone')}s · বলা শুরু ${s('turnEnd', 'firstSpeech')}s` +
+      (Perf.model ? ' · ' + Perf.model : '');
   },
 
   async needKey(code) {
@@ -241,6 +311,9 @@ const Tutor = {
     if (!this.greeted) {
       this.greeted = true;
       const e = this.epoch;
+      // সালামের সময়েই প্রথম বাক্যটা AI থেকে আনা শুরু — সালাম শেষে অপেক্ষা করতে হয় না
+      AI.warm();
+      Practice.prefetch();
       try {
         await this.say(`আসসালামু আলাইকুম ${Settings.get('name') || ''}! চলো শুরু করি।`, 'happy');
       } catch (err) { return; }

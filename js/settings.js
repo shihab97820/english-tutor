@@ -174,6 +174,7 @@ const Screens = {
     toggle('🎧 নিজের কণ্ঠ রেকর্ড করো ("আমার কথা শুনি")', 'recordVoice', 'কিছু ফোনে এটা চালু থাকলে মাইক ঠিকমতো শোনে না। তখন বন্ধ করো (অ্যাপ নিজেও বন্ধ করে দেয়)।');
     toggle('🗣️ ভুলের পর "আমার সাথে বলো"', 'shadowing');
     toggle('📱 অনুশীলনের সময় স্ক্রিন জেগে থাকবে', 'wakeLock');
+    toggle('⏱ কোন ধাপে কত সময় লাগছে দেখাও (পরীক্ষার জন্য)', 'showTiming', 'চালু করলে Home-এ তোমার কথার নিচে ছোট করে দেখাবে: শোনা শেষ হতে, AI-র প্রথম শব্দ আসতে, আর শিক্ষকের বলা শুরু হতে কত সেকেন্ড লাগল।');
 
     // ---- বিষয় ----
     section('বিষয়');
@@ -187,7 +188,7 @@ const Screens = {
       text('Claude মডেল', 'claudeModel', 'text', 'ডিফল্ট: claude-opus-5-5 (সবচেয়ে ভালো)। কম খরচে চাইলে claude-haiku-5-5 লেখো।');
     } else {
       text('Gemini API key', 'geminiKey', 'password', 'ফ্রি key: <b>aistudio.google.com/apikey</b> → "Create API key" → কপি করে এখানে বসাও।<br>কম্পিউটার থেকে বসাতে চাইলে কম্পিউটারে <b>setup.html</b> পেজটা খোলো (README-তে লিংক আছে), তারপর QR কোড স্ক্যান করো।', 'AIza...');
-      text('Gemini মডেল', 'geminiModel', 'text', 'সাধারণত বদলানোর দরকার নেই। মডেল পুরোনো হলে অ্যাপ নিজেই নতুনটা খুঁজে নেয়।');
+      text('Gemini মডেল', 'geminiModel', 'text', 'ডিফল্ট: gemini-flash-lite-latest (দ্রুত, thinking বন্ধ)। ব্যস্ত বা বন্ধ থাকলে অ্যাপ নিজেই অন্য মডেলে চলে যায়।');
     }
     const dt = field('', 'key শুধু এই ফোনে থাকে, সরাসরি Google/Anthropic-এ যায়। ব্যাকআপ ফাইলে key রাখা হয় না।');
     const tb = el('button', 'primary'); tb.type = 'button'; tb.textContent = '✔ key পরীক্ষা করো';

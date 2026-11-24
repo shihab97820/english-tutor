@@ -60,20 +60,29 @@ const DEFAULT_SETTINGS = {
   provider: 'gemini',     // gemini | claude
   geminiKey: '',
   claudeKey: '',
-  geminiModel: 'gemini-3.5-flash-lite',
+  geminiModel: 'gemini-flash-lite-latest',
   claudeModel: 'claude-opus-5-5',
   enVoice: '',
   bnVoice: '',
   shadowing: true,
   recordVoice: true,
   wakeLock: true,
-  micExplained: false
+  micExplained: false,
+  showTiming: false,
+  settingsVer: 2
 };
 
 const Settings = {
   data: null,
   load() {
-    this.data = Object.assign({}, DEFAULT_SETTINGS, Store.get('settings', {}));
+    const saved = Store.get('settings', {});
+    this.data = Object.assign({}, DEFAULT_SETTINGS, saved);
+    // পুরোনো ভার্সনের সেভ করা মডেল নাম (ধীর বা বন্ধ) নতুন দ্রুত মডেলে বদলে দিই
+    if ((saved.settingsVer || 0) < 2 && Object.keys(saved).length) {
+      if (/^gemini-(2.5-flash|3.5-flash-lite)$/.test(this.data.geminiModel || '')) this.data.geminiModel = DEFAULT_SETTINGS.geminiModel;
+      this.data.settingsVer = 2;
+      Store.set('settings', this.data);
+    }
     return this.data;
   },
   get(k) { if (!this.data) this.load(); return this.data[k]; },

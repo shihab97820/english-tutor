@@ -159,7 +159,7 @@ const App = {
   /* প্রথমবার: মাইক কেন লাগবে (ইংরেজিতে ছোট ব্যাখ্যা) */
   async micIntro() {
     await this.dialog({ icon: '🎤', title: 'Microphone access',
-      text: 'English Tutor needs your microphone to hear your spoken English and check it.\nYour voice is turned into text by your phone\'s speech service; nothing is saved on any server.\n\nমাইক দিয়ে তোমার ইংরেজি শুনে শিক্ষক ভুল ধরবে।',
+      text: 'English Tutor needs your microphone to hear your spoken English and check it.\nYour phone\'s speech service turns your voice into text, and only that text is sent to the AI tutor. Your practice data stays on this phone.\n\nমাইক দিয়ে তোমার ইংরেজি শুনে শিক্ষক ভুল ধরবে।',
       buttons: [{ label: 'Allow microphone', primary: true }] });
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: true });

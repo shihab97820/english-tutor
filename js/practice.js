@@ -128,8 +128,9 @@ const Practice = {
     await Tutor.say(fb, correct ? 'happy' : 'encourage');
 
     for (const p of pron) {
-      await Tutor.say(`${p.tip_bn || ''} ${p.word} শব্দটা ধীরে শোনো:`.trim(), 'idle');
+      await Tutor.say(`উচ্চারণ: ${p.word} শব্দটা ধীরে শোনো।`, 'idle');
       await Tutor.sayEn(p.word, true);
+      if (p.tip_bn) await Tutor.say(p.tip_bn, 'idle');
     }
 
     if (!correct && Settings.get('shadowing')) await this.shadow(corrected);

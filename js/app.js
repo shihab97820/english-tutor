@@ -1,7 +1,7 @@
 /* app.js — স্ক্রিন বদল, ফোনের Back বোতাম, ডায়ালগ, ইন্টারনেট না থাকা, আর অ্যাপ চালু হওয়া */
 'use strict';
 
-const APP_VERSION = 'v1.0.0';
+const APP_VERSION = 'v1.1.0';
 
 /* ================= Back বোতাম ও স্ক্রিন =================
    ব্রাউজারের history ব্যবহার করি: প্রতিটা ভেতরের স্ক্রিন খোলার সময় একটা ধাপ যোগ হয়,
@@ -208,8 +208,24 @@ const App = {
   },
 
   /* ---------- চালু ---------- */
+  /* কম্পিউটারের setup.html থেকে QR স্ক্যান করলে লিংকের # অংশে key আসে।
+     # অংশ কোনো সার্ভারে যায় না। সেভ করে সাথে সাথে লিংক থেকে মুছে ফেলি। */
+  importSetupLink() {
+    const m = location.hash.match(/^#setup=(.+)$/);
+    if (!m) return false;
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      const d = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
+      if (d.provider === 'claude' && d.key) { Settings.set('claudeKey', d.key); Settings.set('provider', 'claude'); }
+      else if (d.key) { Settings.set('geminiKey', d.key); Settings.set('provider', 'gemini'); }
+      if (d.name) Settings.set('name', d.name);
+      return !!d.key;
+    } catch (e) { return false; }
+  },
+
   async boot() {
     Settings.load();
+    const fromSetup = this.importSetupLink();
     Voice.init();
     Tutor.init();
     Nav.init();
@@ -228,6 +244,7 @@ const App = {
     });
     window.addEventListener('online', () => { if (this.dialogOpen && document.getElementById('ovTitle').textContent === 'No internet') this.closeDialog(); });
 
+    if (fromSetup) this.toast('API key সেভ হয়েছে ✅');
     if (!Listener.supported()) { this.noSpeechSupport(); }
     if (!Settings.get('micExplained')) await this.micIntro();
 

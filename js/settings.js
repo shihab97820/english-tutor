@@ -186,7 +186,7 @@ const Screens = {
       text('Claude API key', 'claudeKey', 'password', 'console.anthropic.com → API Keys থেকে নাও। Claude ফ্রি নয়, ব্যবহার অনুযায়ী টাকা কাটে।', 'sk-ant-...');
       text('Claude মডেল', 'claudeModel', 'text', 'ডিফল্ট: claude-opus-5-5 (সবচেয়ে ভালো)। কম খরচে চাইলে claude-haiku-5-5 লেখো।');
     } else {
-      text('Gemini API key', 'geminiKey', 'password', 'ফ্রি key: <b>aistudio.google.com/apikey</b> → "Create API key" → কপি করে এখানে বসাও।', 'AIza...');
+      text('Gemini API key', 'geminiKey', 'password', 'ফ্রি key: <b>aistudio.google.com/apikey</b> → "Create API key" → কপি করে এখানে বসাও।<br>কম্পিউটার থেকে বসাতে চাইলে কম্পিউটারে <b>setup.html</b> পেজটা খোলো (README-তে লিংক আছে), তারপর QR কোড স্ক্যান করো।', 'AIza...');
       text('Gemini মডেল', 'geminiModel', 'text', 'সাধারণত বদলানোর দরকার নেই। মডেল পুরোনো হলে অ্যাপ নিজেই নতুনটা খুঁজে নেয়।');
     }
     const dt = field('', 'key শুধু এই ফোনে থাকে, সরাসরি Google/Anthropic-এ যায়। ব্যাকআপ ফাইলে key রাখা হয় না।');

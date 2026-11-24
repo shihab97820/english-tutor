@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutor Setup</title>
+<style>
+  :root { --bg: #14213d; --card: #1d3557; --text: #f4f6fb; --muted: #b8c2d9; --accent: #ffb703; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Noto Sans Bengali", system-ui, sans-serif; padding: 24px 16px; }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 6px; }
+  p, li { color: var(--muted); line-height: 1.6; }
+  .card { background: var(--card); border-radius: 16px; padding: 18px; margin-top: 16px; }
+  label { display: block; margin: 12px 0 6px; }
+  input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: var(--text); font: inherit; }
+  button { margin-top: 16px; width: 100%; padding: 12px; border: 0; border-radius: 12px; background: var(--accent); color: #1b1b1b; font: inherit; font-weight: 600; cursor: pointer; }
+  button.secondary { background: rgba(255,255,255,.14); color: var(--text); }
+  #qr { display: flex; justify-content: center; margin-top: 16px; }
+  #qr canvas, #qr img { background: #fff; padding: 12px; border-radius: 12px; }
+  #out[hidden] { display: none; }
+  .warn { color: #ffb4a2; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>English Tutor: কম্পিউটার থেকে API key বসাও</h1>
+  <p>key এখানে লিখলে একটা QR কোড আসবে। ফোনের ক্যামেরা দিয়ে স্ক্যান করলে অ্যাপ খুলবে আর key নিজে থেকে সেভ হয়ে যাবে।
+     key কোনো সার্ভারে যায় না, শুধু এই পেজ থেকে QR কোডে, তারপর তোমার ফোনে।</p>
+
+  <div class="card">
+    <label for="provider">AI সার্ভিস</label>
+    <select id="provider">
+      <option value="gemini">Google Gemini (ফ্রি)</option>
+      <option value="claude">Claude</option>
+    </select>
+    <label for="key">API key</label>
+    <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza...">
+    <label for="name">তোমার নাম (ঐচ্ছিক)</label>
+    <input id="name" type="text" placeholder="শিহাব">
+    <button id="make" type="button">QR কোড বানাও</button>
+  </div>
+
+  <div id="out" class="card" hidden>
+    <ol>
+      <li>ফোনের ক্যামেরা (বা Google Lens) দিয়ে নিচের QR কোড স্ক্যান করো।</li>
+      <li>যে লিংক দেখাবে সেটা <b>Chrome</b>-এ খোলো। অ্যাপ "API key সেভ হয়েছে ✅" দেখাবে।</li>
+      <li>APK install করা থাকলেও এটা চলবে, কারণ APK আর Chrome একই ডেটা ব্যবহার করে।</li>
+    </ol>
+    <div id="qr"></div>
+    <button id="copy" class="secondary" type="button">লিংক কপি করো (নিজেকে পাঠাতে চাইলে)</button>
+    <button id="clear" class="secondary" type="button">মুছে ফেলো</button>
+    <p class="warn">কাজ শেষ হলে "মুছে ফেলো" চাপো। লিংকে তোমার key আছে, তাই এটা অন্য কাউকে পাঠিও না।</p>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const appUrl = new URL('./', location.href).href;
+  let link = '';
+
+  $('provider').onchange = () => { $('key').placeholder = $('provider').value === 'claude' ? 'sk-ant-...' : 'AIza...'; };
+
+  $('make').onclick = () => {
+    const key = $('key').value.trim();
+    if (!key) { alert('আগে API key লেখো'); return; }
+    const data = { provider: $('provider').value, key };
+    const name = $('name').value.trim();
+    if (name) data.name = name;
+    const packed = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
+    link = appUrl + '#setup=' + packed;
+    $('qr').innerHTML = '';
+    new QRCode($('qr'), { text: link, width: 260, height: 260, correctLevel: QRCode.CorrectLevel.M });
+    $('out').hidden = false;
+  };
+
+  $('copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(link); $('copy').textContent = 'কপি হয়েছে ✅'; }
+    catch (e) { prompt('এই লিংকটা কপি করো:', link); }
+  };
+
+  $('clear').onclick = () => {
+    $('key').value = ''; $('name').value = ''; link = '';
+    $('qr').innerHTML = ''; $('out').hidden = true;
+  };
+</script>
+</body>
+</html>

@@ -32,6 +32,31 @@ APK আবার install করতে হবে না। ভালো অভ্
 
 > APK আবার বানাতে হবে শুধু অ্যাপের **নাম, আইকন বা package** বদলালে।
 
+## লিংক
+
+* অ্যাপ: **https://shihab97820.github.io/english-tutor/**
+* কোড: https://github.com/shihab97820/english-tutor
+
+## APK বানানো (PWABuilder)
+
+1. কম্পিউটারের ব্রাউজারে **pwabuilder.com** খোলো। অ্যাপের লিংকটা বসিয়ে **Start** চাপো।
+2. রিপোর্ট এলে **Package For Stores** চাপো, তারপর **Android → Generate Package**।
+3. অপশনে:
+   * **Package ID**: `io.github.shihab97820.englishtutor`
+   * **App name**: `English Tutor`
+   * **Signing key**: "Create new" (প্রথমবার)
+   * বাকি সব ডিফল্ট থাকুক।
+4. **Download** চাপলে একটা zip আসবে। এটা **খুব যত্নে রাখো** (Google Drive-এ কপি রাখো)। এর ভেতরে আছে:
+   * `*.apk`: ফোনে install করার ফাইল।
+   * `signing.keystore` আর `signing-key-info.txt`: ভবিষ্যতে APK আবার বানালে এগুলোই লাগবে।
+   * `assetlinks.json`: নিচের ধাপ ৫-এর জন্য।
+5. **ব্রাউজারের ঠিকানা-বার লুকানো:** zip-এর `assetlinks.json` ফাইলটা repo-তে `.well-known/assetlinks.json` নামে রাখতে হবে।
+   এটা না থাকলে APK-র উপরে একটা ছোট Chrome ঠিকানা-বার দেখা যায়।
+   > সতর্কতা: GitHub Pages-এ `username.github.io/english-tutor` ঠিকানায় এটা পুরোপুরি কাজ নাও করতে পারে, কারণ ফাইলটা ডোমেইনের একদম গোড়ায় থাকতে হয়। তখন ঠিকানা-বারটা থেকে যাবে, কিন্তু অ্যাপ ঠিকঠাক চলবে।
+6. APK ফাইলটা ফোনে পাঠাও (Google Drive, USB বা WhatsApp-এ নিজেকে)। ফোনে ট্যাপ করো, "Install unknown apps" অনুমতি দাও, তারপর **Install**।
+
+APK শুধু GitHub-এর অ্যাপটা খোলে। তাই পরে কোড বদলালে APK আবার বানাতে হবে না।
+
 ## ফোনে API key (একবারই করতে হবে)
 
 1. ফোনের Chrome-এ যাও **aistudio.google.com/apikey**। Google account দিয়ে ঢোকো।

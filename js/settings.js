@@ -199,7 +199,8 @@ const Screens = {
         App.toast('কাজ করছে! ✅ ' + (s || ''));
         Tutor.setMic('idle');
       } catch (e) {
-        const msg = { nokey: 'আগে key বসাও', badkey: 'key ভুল বা বাতিল', offline: 'ইন্টারনেট নেই', timeout: 'উত্তর আসতে দেরি হচ্ছে', ratelimit: 'অনেক বেশি অনুরোধ — একটু পরে চেষ্টা করো', nomodel: 'মডেলের নাম ভুল' }[e.code];
+        const msg = { nokey: 'আগে key বসাও', badkey: 'key ভুল বা বাতিল', offline: 'ইন্টারনেট নেই', timeout: 'উত্তর আসতে দেরি হচ্ছে', ratelimit: 'তোমার key ঠিক আছে ✅, কিন্তু এখন ফ্রি কোটা শেষ। একটু পরে আবার চেষ্টা করো।', nomodel: 'মডেলের নাম ভুল',
+          server: 'তোমার key ঠিক আছে ✅। শুধু Google-এর সার্ভার এখন খুব ব্যস্ত, অন্য মডেলেও চেষ্টা করেছি। ১–২ মিনিট পর আবার চেষ্টা করো।' }[e.code];
         App.dialog({ icon: '⚠️', title: 'কাজ করছে না', text: (msg || 'সমস্যা') + (e.detail ? '\n\n' + String(e.detail).slice(0, 200) : ''), buttons: [{ label: 'ঠিক আছে', primary: true }] });
       }
       tb.disabled = false; tb.textContent = '✔ key পরীক্ষা করো';

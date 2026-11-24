@@ -43,36 +43,61 @@ const AI = {
     return body;
   },
 
-  /* ---------- Google Gemini ---------- */
-  async gemini(key, userMsg, retried) {
-    const model = Settings.get('geminiModel') || 'gemini-2.5-flash';
+  /* ---------- Google Gemini ----------
+     Google-এর সার্ভার ব্যস্ত থাকলে ("high demand") বা একটা মডেলের ফ্রি কোটা শেষ হলে:
+     একবার একটু অপেক্ষা করে আবার চেষ্টা, তারপর অন্য Gemini মডেলে চেষ্টা। */
+  async gemini(key, userMsg) {
+    const primary = Settings.get('geminiModel') || 'gemini-2.5-flash';
+    const candidates = [primary];
+    let lastErr = null, altsAdded = false;
+    for (let i = 0; i < candidates.length && i < 5; i++) {
+      const model = candidates[i];
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const text = await this.geminiOnce(key, model, userMsg);
+          // প্রধান মডেল আর নেই (404) কিন্তু অন্যটা চলল — সেটাই সেভ করি
+          if (model !== primary && lastErr && lastErr.code === 'nomodel') Settings.set('geminiModel', model);
+          return text;
+        } catch (e) {
+          if (!lastErr || i === 0) lastErr = e;
+          if (e.code === 'server' || e.code === 'ratelimit' || e.code === 'timeout') {
+            if (attempt === 0 && e.code === 'server') { await new Promise(r => setTimeout(r, 1500)); continue; }
+            break; // অন্য মডেলে যাই
+          }
+          if (e.code === 'nomodel' || e.code === 'empty') break;
+          throw e; // key ভুল, ইন্টারনেট নেই ইত্যাদি — মডেল বদলে লাভ নেই
+        }
+      }
+      if (!altsAdded) {
+        altsAdded = true;
+        (await this.geminiAlternates(key)).forEach(m => { if (!candidates.includes(m)) candidates.push(m); });
+      }
+    }
+    throw lastErr || new AIError('server');
+  },
+
+  async geminiOnce(key, model, userMsg) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const body = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: userMsg }] }],
       generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
     };
-    try {
-      const data = await this.fetchJSON(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify(body)
-      });
-      const cand = data && data.candidates && data.candidates[0];
-      const text = cand && cand.content && (cand.content.parts || []).map(p => p.text || '').join('');
-      if (!text) throw new AIError('empty', (cand && cand.finishReason) || 'no text');
-      return text;
-    } catch (e) {
-      // মডেলের নাম পুরোনো হয়ে গেলে নিজে থেকেই নতুন "flash" মডেল খুঁজে নিই
-      if (e.code === 'nomodel' && !retried) {
-        const m = await this.findGeminiModel(key);
-        if (m && m !== model) { Settings.set('geminiModel', m); return this.gemini(key, userMsg, true); }
-      }
-      throw e;
-    }
+    const data = await this.fetchJSON(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify(body)
+    });
+    const cand = data && data.candidates && data.candidates[0];
+    const text = cand && cand.content && (cand.content.parts || []).map(p => p.text || '').join('');
+    if (!text) throw new AIError('empty', (cand && cand.finishReason) || 'no text');
+    return text;
   },
 
-  async findGeminiModel(key) {
+  /* এই key দিয়ে কোন কোন "flash" মডেল চলে — নতুনগুলো আগে, "lite" গুলো শেষে */
+  _alts: null,
+  async geminiAlternates(key) {
+    if (this._alts) return this._alts;
     try {
       const data = await this.fetchJSON('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
         headers: { 'x-goog-api-key': key }
@@ -80,14 +105,13 @@ const AI = {
       const names = (data.models || [])
         .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
         .map(m => m.name.replace(/^models\//, ''))
-        .filter(n => /flash/.test(n) && !/lite|image|tts|audio|live|exp|preview|thinking/.test(n));
-      names.sort((a, b) => {
-        const va = parseFloat((a.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
-        const vb = parseFloat((b.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
-        return vb - va;
-      });
-      return names[0] || null;
-    } catch (e) { return null; }
+        .filter(n => /^gemini-[\d.]+-flash/.test(n) && !/image|tts|audio|live|exp|thinking/.test(n));
+      const ver = n => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+      const rank = n => (/lite/.test(n) ? 1 : 0) + (/preview/.test(n) ? 0.5 : 0);
+      names.sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a));
+      this._alts = names.slice(0, 6);
+    } catch (e) { this._alts = ['gemini-2.5-flash-lite']; }
+    return this._alts;
   },
 
   /* ---------- Anthropic Claude ---------- */

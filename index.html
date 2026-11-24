@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213d">
+<meta name="description" content="English speaking practice with a patient AI tutor, for Bangla speakers.">
+<title>English Tutor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ HOME: only the tutor ============ -->
+<section id="scr-home" class="screen active">
+  <div class="home-top">
+    <span id="modeChip" class="mode-chip" hidden></span>
+    <button id="btnMenu" class="menu-btn" type="button">☰ মেনু</button>
+  </div>
+
+  <div id="avatarBox" class="avatar-box st-idle"></div>
+
+  <div id="subs" class="subs">
+    <div id="tutorLine" class="sub sub-tutor"></div>
+    <div id="myLine" class="sub sub-me"></div>
+    <div id="extra" class="extra"></div>
+  </div>
+
+  <div class="helpers">
+    <button id="btnRepeat" class="pill" type="button">🔁 আবার বলো</button>
+    <button id="btnHint" class="pill" type="button">💡 বুঝিনি</button>
+    <button id="btnBangla" class="pill" type="button" hidden>🇧🇩 বাংলায় বলো</button>
+  </div>
+
+  <div class="mic-wrap">
+    <button id="mic" class="mic" type="button" aria-label="Microphone">
+      <span id="micIcon">🎤</span>
+    </button>
+    <div id="micLabel" class="mic-label">&nbsp;</div>
+  </div>
+</section>
+
+<!-- ============ MENU ============ -->
+<section id="scr-menu" class="screen">
+  <header class="bar"><button class="back" type="button">←</button><h1>মেনু</h1></header>
+  <div class="list">
+    <button class="row" data-go="roleplay"><span>💬</span>কথোপকথন<small>একটা role-play বেছে নাও</small></button>
+    <button class="row" data-go="mistakes"><span>📝</span>আমার ভুল<small>ভুল বাক্যগুলো আবার দেখো</small></button>
+    <button class="row" data-go="words"><span>📒</span>শব্দ খাতা<small>যে শব্দগুলো জিজ্ঞেস করেছ</small></button>
+    <button class="row" data-go="bookmarks"><span>⭐</span>সেভ করা বাক্য<small>তোমার পছন্দের বাক্য</small></button>
+    <button class="row" data-go="settings"><span>⚙️</span>সেটিংস<small>অ্যাভাটার, কণ্ঠ, গতি, API key, ব্যাকআপ</small></button>
+  </div>
+</section>
+
+<!-- ============ ROLE-PLAY PICKER ============ -->
+<section id="scr-roleplay" class="screen">
+  <header class="bar"><button class="back" type="button">←</button><h1>কথোপকথন</h1></header>
+  <div id="roleList" class="list"></div>
+</section>
+
+<!-- ============ MISTAKES ============ -->
+<section id="scr-mistakes" class="screen">
+  <header class="bar"><button class="back" type="button">←</button><h1>আমার ভুলগুলো</h1></header>
+  <div class="list-actions"><button id="btnReviewNow" class="primary" type="button">▶ এখনই রিভিউ করো</button></div>
+  <div id="mistakeList" class="list"></div>
+</section>
+
+<!-- ============ WORDS ============ -->
+<section id="scr-words" class="screen">
+  <header class="bar"><button class="back" type="button">←</button><h1>শব্দ খাতা</h1></header>
+  <div id="wordList" class="list"></div>
+</section>
+
+<!-- ============ BOOKMARKS ============ -->
+<section id="scr-bookmarks" class="screen">
+  <header class="bar"><button class="back" type="button">←</button><h1>সেভ করা বাক্য</h1></header>
+  <div id="bookmarkList" class="list"></div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section id="scr-settings" class="screen">
+  <header class="bar"><button class="back" type="button">←</button><h1>সেটিংস</h1></header>
+  <div id="settingsForm" class="form"></div>
+</section>
+
+<!-- ============ OVERLAYS ============ -->
+<div id="overlay" class="overlay" hidden>
+  <div class="dialog">
+    <div id="ovIcon" class="ov-icon"></div>
+    <h2 id="ovTitle"></h2>
+    <p id="ovText"></p>
+    <div id="ovButtons" class="ov-buttons"></div>
+  </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/storage.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/mistakes.js"></script>
+<script src="js/tutor.js"></script>
+<script src="js/practice.js"></script>
+<script src="js/roleplay.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
